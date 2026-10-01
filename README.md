@@ -4,6 +4,8 @@
 
 LocalRepo AI is a privacy-first developer assistant. Point it at a local repository, ask questions in plain English, and get answers grounded in your actual code. The AI runs entirely on your machine through [Ollama](https://ollama.com), so **your source code is never sent to a cloud API**.
 
+![LocalRepo AI screenshot](Screenshot/Screenshot%202026-10-01%20150654.png)
+
 ---
 
 ## Table of Contents

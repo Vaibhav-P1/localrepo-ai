@@ -170,3 +170,7 @@ Runs five sample questions (architecture, startup, a specific component, a port 
 - Streaming answers
 - Optional larger local models
 - Incremental re-indexing on file changes
+
+## License
+
+MIT. See [LICENSE](LICENSE).

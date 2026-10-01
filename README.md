@@ -4,6 +4,10 @@
 
 LocalRepo AI is a privacy-first developer assistant. Point it at a local repository, ask questions in plain English, and get answers grounded in your actual code. The AI runs entirely on your machine through [Ollama](https://ollama.com), so **your source code is never sent to a cloud API**.
 
+<p align="center">
+  <a href="https://github.com/Vaibhav-P1/localrepo-ai/releases/latest"><img alt="Download for Windows" src="https://img.shields.io/badge/Download-LocalRepo--AI--Setup.exe-14110f?style=for-the-badge&logo=windows&logoColor=white"></a>
+</p>
+
 ![LocalRepo AI screenshot](Screenshot/Screenshot%202026-10-01%20150654.png)
 
 ---
@@ -98,7 +102,7 @@ LocalRepo-AI/
 
 ## Download and Install
 
-1. Download **LocalRepo-AI-Setup.exe** (Windows x64).
+1. Download **[LocalRepo-AI-Setup.exe](https://github.com/Vaibhav-P1/localrepo-ai/releases/latest)** from the latest release (Windows x64).
 2. Run it to install LocalRepo AI. It adds Start Menu and Desktop shortcuts.
 3. Install [Ollama](https://ollama.com/download/windows) if you don't have it.
 4. Download the model once:

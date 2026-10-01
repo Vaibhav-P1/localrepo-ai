@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import './index.css'
+import Answer from './Answer'
 
 type Status = { connected: boolean; model: string; model_available: boolean }
 type Repo = { name: string; file_count: number; languages: string[]; files: string[] }
@@ -23,6 +24,7 @@ export default function App() {
   const [path, setPath] = useState('')
   const [repo, setRepo] = useState<Repo | null>(null)
   const [loading, setLoading] = useState(false)
+  const [browsing, setBrowsing] = useState(false)
   const [repoErr, setRepoErr] = useState('')
   const [msgs, setMsgs] = useState<Msg[]>([])
   const [q, setQ] = useState('')
@@ -47,6 +49,15 @@ export default function App() {
   }, [])
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [msgs])
   useEffect(() => { hlRef.current?.scrollIntoView({ block: 'center' }) }, [viewed])
+
+  async function browse() {
+    setBrowsing(true); setRepoErr('')
+    try {
+      const r = await api<{ path: string | null }>('/api/browse')
+      if (r.path) setPath(r.path) // null = user cancelled
+    } catch (e) { setRepoErr((e as Error).message) }
+    setBrowsing(false)
+  }
 
   async function loadRepo() {
     setLoading(true); setRepoErr(''); setMsgs([]); setViewed(null)
@@ -122,6 +133,7 @@ export default function App() {
             <div className="row">
               <input className="path" placeholder="C:\path\to\repo" value={path}
                 onChange={e => setPath(e.target.value)} onKeyDown={e => e.key === 'Enter' && loadRepo()} />
+              <button className="btn alt" disabled={browsing || loading} onClick={browse} title="Pick a folder">{browsing ? '…' : '📁 Browse'}</button>
               <button className="btn" disabled={!path.trim() || loading} onClick={loadRepo}>{loading ? '…' : 'Load'}</button>
             </div>
             {repoErr && <div className="err">{repoErr}</div>}
@@ -164,11 +176,11 @@ export default function App() {
                     {m.a === undefined && !m.error && <div className="a">Searching repo &amp; asking local model<span className="dots" /></div>}
                     {m.error && <div className="err">{m.error}</div>}
                     {m.a !== undefined && <>
-                      <div className="a">{m.a}</div>
-                      <div className="srcs"><h5>Relevant Sources</h5>
+                      <div className="a"><Answer text={m.a} files={repo?.files ?? []} sources={m.sources ?? []} onOpen={open} /></div>
+                      <div className="srcs"><h5>RELEVANT SOURCES</h5>
                         {m.sources?.length ? m.sources.map(s => (
                           <div key={s.file} className="src" onClick={() => open(s.file, [s.start_line, s.end_line])}>
-                            📄 {s.file} <i>L{s.start_line}–{s.end_line}</i></div>
+                            📄 {s.file} <i>· L{s.start_line}–{s.end_line}</i></div>
                         )) : <i style={{ color: 'var(--muted)' }}>No matching files</i>}
                       </div>
                     </>}

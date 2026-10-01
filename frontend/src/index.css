@@ -50,7 +50,7 @@ section.chat{flex:1;display:flex;flex-direction:column;min-width:0;margin-right:
 .empty .ex{display:inline-block;margin:6px 8px 0 0;padding:6px 12px;border:2px solid var(--ink);cursor:pointer;color:var(--ink);font-weight:700;background:var(--bg)}
 .empty .ex:hover{background:var(--hl)}
 .q{background:var(--ink);color:var(--bg);padding:8px 14px;margin:18px 0 10px;font-weight:800;width:fit-content;max-width:100%}
-.a{background:var(--bg);border:3px solid var(--ink);box-shadow:5px 5px 0 var(--shadow);padding:16px 20px;white-space:pre-wrap;margin-right:5px}
+.a{background:var(--bg);border:3px solid var(--ink);box-shadow:5px 5px 0 var(--shadow);padding:16px 22px 18px;margin-right:5px}
 .srcs{margin-top:14px;display:flex;flex-direction:column;gap:6px}
 .srcs h5{margin:6px 0 2px;font-size:12px;font-weight:900;letter-spacing:.14em;text-transform:uppercase}
 .src{font-family:ui-monospace,Consolas,monospace;font-size:12.5px;color:var(--ink);cursor:pointer;padding:4px 10px;background:var(--card);border:2px solid var(--ink);width:fit-content;max-width:100%;font-weight:600}
@@ -70,3 +70,37 @@ pre.code{margin:0;padding:8px 0;font:12.5px/1.6 ui-monospace,Consolas,monospace}
 .err{color:var(--red);padding:8px 0;font-weight:700}
 .dots::after{content:'';animation:d 1.2s steps(4) infinite}
 @keyframes d{0%{content:''}25%{content:'.'}50%{content:'..'}75%{content:'...'}}
+
+.analysis-label{display:inline-block;background:var(--ink);color:var(--bg);font-size:11px;font-weight:900;letter-spacing:.16em;padding:3px 10px;margin-bottom:12px}
+.md{line-height:1.7;font-size:15px;overflow-wrap:anywhere}
+.md>*:first-child{margin-top:0}.md>*:last-child{margin-bottom:0}
+.md p{margin:0 0 12px}
+.md h1,.md h2,.md h3,.md h4{font-weight:900;text-transform:uppercase;letter-spacing:.04em;margin:20px 0 8px;line-height:1.2}
+.md h1{font-size:22px}.md h2{font-size:18px;border-bottom:3px solid var(--ink);padding-bottom:4px}.md h3{font-size:15px}.md h4{font-size:13px;color:var(--muted)}
+.md strong{font-weight:800;background:var(--hl)}
+.md ul{margin:0 0 12px;padding-left:22px}.md ul li{margin:4px 0}
+.md ul ul,.md ol ul{margin:6px 0}
+.md ol.steps{list-style:none;counter-reset:step;margin:6px 0 14px;padding:0}
+.md ol.steps>li{counter-increment:step;position:relative;margin:0 0 10px;padding:10px 12px 10px 58px;border:2px solid var(--ink);background:var(--card);min-height:46px}
+.md ol.steps>li::before{content:counter(step);position:absolute;left:0;top:0;bottom:0;width:44px;display:flex;align-items:center;justify-content:center;background:var(--ink);color:var(--bg);font-weight:900;font-size:18px}
+.md ol.steps>li+li::after{content:'';position:absolute;left:21px;top:-12px;height:10px;width:2px;background:var(--ink)}
+.md ol.steps .li-body>p:last-child{margin-bottom:0}
+.md code.inline{font-family:ui-monospace,Consolas,monospace;font-size:.88em;background:var(--card2);border:1.5px solid var(--ink);padding:0 5px}
+.md pre.md-pre{margin:10px 0 14px;background:var(--card);border:2px solid var(--ink);box-shadow:3px 3px 0 var(--shadow);padding:12px 14px;overflow:auto;max-height:420px}
+.md pre.md-pre code{font:12.5px/1.6 ui-monospace,Consolas,monospace;white-space:pre;background:none;border:0;padding:0}
+.md .tablewrap{overflow:auto;margin:10px 0 14px;border:2px solid var(--ink)}
+.md table{border-collapse:collapse;width:100%;font-size:13.5px}
+.md th{background:var(--ink);color:var(--bg);text-align:left;padding:6px 10px;text-transform:uppercase;font-size:12px;letter-spacing:.06em}
+.md td{padding:6px 10px;border-top:2px solid var(--ink);vertical-align:top}
+.md blockquote{margin:10px 0;padding:4px 14px;border-left:5px solid var(--shadow);color:var(--muted)}
+.md a{color:var(--accent);font-weight:700}
+.md hr{border:0;border-top:3px solid var(--ink);margin:16px 0}
+.pathchip{font-family:ui-monospace,Consolas,monospace;font-size:.86em;font-weight:700;color:var(--ink);background:var(--card);border:2px solid var(--ink);padding:0 6px;margin:0 1px;cursor:pointer;border-radius:0}
+.pathchip:hover{background:var(--accent);color:#fff}
+.srcs h5{display:inline-block}
+.src{box-shadow:3px 3px 0 var(--shadow)}
+.btn.alt{background:var(--card);color:var(--ink);white-space:nowrap}
+.btn.alt:hover:not(:disabled){background:var(--hl);color:var(--ink)}
+input.path{flex:1 1 100%}
+.row{flex-wrap:wrap}
+.btn.alt{flex:1}

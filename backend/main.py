@@ -1,6 +1,8 @@
 """LocalRepo AI backend: scans a local repo, retrieves relevant code, asks local Ollama."""
 import os
 import re
+import subprocess
+import sys
 from collections import Counter
 
 import requests
@@ -112,6 +114,27 @@ def status():
         return {"connected": True, "model": MODEL, "model_available": MODEL in names}
     except Exception:
         return {"connected": False, "model": MODEL, "model_available": False}
+
+
+PICKER = (
+    "import tkinter as tk\nfrom tkinter import filedialog\n"
+    "r = tk.Tk(); r.withdraw(); r.attributes('-topmost', True)\n"
+    "p = filedialog.askdirectory(title='Select repository folder', mustexist=True)\n"
+    "print(p or '', end='')"
+)
+
+
+@app.get("/api/browse")
+def browse():
+    """Open a native folder picker on the machine running the backend (local app)."""
+    try:
+        out = subprocess.run([sys.executable, "-c", PICKER], capture_output=True, text=True, timeout=300)
+    except (subprocess.TimeoutExpired, OSError) as e:
+        raise HTTPException(500, f"Folder picker failed: {e}")
+    if out.returncode != 0:
+        raise HTTPException(500, "Folder picker unavailable (tkinter missing?)")
+    path = out.stdout.strip()
+    return {"path": os.path.normpath(path) if path else None}
 
 
 @app.post("/api/repo")

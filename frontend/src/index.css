@@ -110,3 +110,6 @@ input.path{flex:1 1 100%}
 .md.file pre.md-pre code{color:#f4ecd8}
 .md.file code.inline{background:#14110f;color:#f4ecd8;border-color:#14110f}
 .src.bad{cursor:default;color:var(--red);box-shadow:none}.src.bad:hover{background:var(--card);color:var(--red)}
+.setup{border:3px solid var(--ink);background:var(--hl);box-shadow:5px 5px 0 var(--shadow);padding:16px 20px;margin:0 5px 18px 0}
+.setup h3{margin:0 0 6px;font-size:18px;font-weight:900;text-transform:uppercase}
+.setup p{margin:4px 0 10px}.setup .hint{font-size:13px;color:var(--muted);margin:10px 0 0}

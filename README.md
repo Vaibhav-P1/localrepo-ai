@@ -14,7 +14,9 @@ LocalRepo AI is a privacy-first developer assistant. Point it at a local reposit
 - [How It Works](#how-it-works)
 - [Tech Stack](#tech-stack)
 - [Project Structure](#project-structure)
-- [Getting Started](#getting-started)
+- [Download and Install](#download-and-install)
+- [Developer Setup (desktop app)](#developer-setup-desktop-app)
+- [Getting Started](#getting-started-browser-dev-mode)
 - [Usage](#usage)
 - [API Reference](#api-reference)
 - [Privacy and Safety](#privacy-and-safety)
@@ -94,7 +96,39 @@ LocalRepo-AI/
 └── README.md
 ```
 
-## Getting Started
+## Download and Install
+
+1. Download **LocalRepo-AI-Setup.exe** (Windows x64).
+2. Run it to install LocalRepo AI. It adds Start Menu and Desktop shortcuts.
+3. Install [Ollama](https://ollama.com/download/windows) if you don't have it.
+4. Download the model once:
+   ```
+   ollama pull gemma3:1b
+   ```
+   (The app can also do this for you: if the model is missing it shows an **Install Model** button.)
+5. Launch **LocalRepo AI**.
+6. Click **Browse Folder** (or paste a path).
+7. Select any repository on your PC and click **Load**.
+8. Ask questions.
+
+The installer bundles the UI and the Python backend, so no Python or Node.js is needed. The backend listens only on `127.0.0.1` (random free port) and is stopped when you close the app. Nothing is uploaded; Ollama runs locally. Overrides: `LOCALREPO_OLLAMA_URL` (default `http://localhost:11434`) and `LOCALREPO_MODEL` (default `gemma3:1b`).
+
+The installer is not code-signed, so Windows SmartScreen may show "unknown publisher". Choose **More info, Run anyway**.
+
+## Developer Setup (desktop app)
+
+Requires Node.js 18+ and Python 3.10+ (`pip install -r backend/requirements.txt pyinstaller`).
+
+```bash
+cd desktop
+npm install
+npm run electron:dev     # Electron + Vite (5173) + uvicorn (8000)
+npm run electron:start   # build UI, run Electron against the local backend
+npm run electron:build   # frontend + PyInstaller backend + NSIS installer
+```
+The installer is written to `desktop/release/LocalRepo-AI-Setup.exe`; `npm run electron:pack` builds only the unpacked app in `desktop/release/win-unpacked`.
+
+## Getting Started (browser dev mode)
 
 ### Prerequisites
 - [Ollama](https://ollama.com) installed and running

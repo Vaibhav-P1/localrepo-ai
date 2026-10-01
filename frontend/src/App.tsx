@@ -25,6 +25,8 @@ export default function App() {
   const [repo, setRepo] = useState<Repo | null>(null)
   const [loading, setLoading] = useState(false)
   const [browsing, setBrowsing] = useState(false)
+  const [pulling, setPulling] = useState(false)
+  const [setupErr, setSetupErr] = useState('')
   const [repoErr, setRepoErr] = useState('')
   const [msgs, setMsgs] = useState<Msg[]>([])
   const [q, setQ] = useState('')
@@ -53,10 +55,28 @@ export default function App() {
   async function browse() {
     setBrowsing(true); setRepoErr('')
     try {
-      const r = await api<{ path: string | null }>('/api/browse')
-      if (r.path) setPath(r.path) // null = user cancelled
+      // Desktop app: native Electron dialog. Browser dev mode: backend tkinter picker.
+      const picked = window.localrepo
+        ? await window.localrepo.pickFolder()
+        : (await api<{ path: string | null }>('/api/browse')).path
+      if (picked) setPath(picked) // null = user cancelled
     } catch (e) { setRepoErr((e as Error).message) }
     setBrowsing(false)
+  }
+
+  const refreshStatus = () => api<Status>('/api/status').then(setStatus).catch(() => undefined)
+
+  async function installModel() {
+    setPulling(true); setSetupErr('')
+    try { await api('/api/pull-model', {}); await refreshStatus() }
+    catch (e) { setSetupErr((e as Error).message) }
+    setPulling(false)
+  }
+
+  function installOllama() {
+    const url = 'https://ollama.com/download/windows'
+    if (window.localrepo) window.localrepo.openExternal(url)
+    else window.open(url, '_blank', 'noreferrer')
   }
 
   async function loadRepo() {
@@ -160,6 +180,20 @@ export default function App() {
           <div className="panes">
             <div className="ask">
               <div className="msgs">
+                {status && !status.connected && <div className="setup">
+                  <h3>Set up local AI</h3>
+                  <p>LocalRepo AI uses Ollama to run AI locally. Install it, start it, then re-check.</p>
+                  <div className="row"><button className="btn" onClick={installOllama}>Install Ollama</button>
+                    <button className="btn alt" onClick={refreshStatus}>Re-check</button></div>
+                  <p className="hint">Already installed? Start it with <code>ollama serve</code> (or open the Ollama app).</p>
+                </div>}
+                {status && status.connected && !status.model_available && <div className="setup">
+                  <h3>Gemma 3 1B is not installed</h3>
+                  <p>Download <code>{status.model}</code> once (about 800 MB). It runs fully on this PC.</p>
+                  <div className="row"><button className="btn" disabled={pulling} onClick={installModel}>{pulling ? 'Installing… this can take a few minutes' : 'Install Model'}</button></div>
+                  {setupErr && <div className="err">{setupErr}</div>}
+                  <p className="hint">Or run <code>ollama pull {status.model}</code> in a terminal.</p>
+                </div>}
                 {msgs.length === 0 && <div className="empty">
                   {!repo && <div className="hero">
                     <h1>LOCAL<br />REPO <span>AI</span></h1>

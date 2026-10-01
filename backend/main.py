@@ -13,8 +13,8 @@ from pydantic import BaseModel
 
 from retrieval import is_overview, overview_context, retrieve
 
-OLLAMA = "http://localhost:11434"
-MODEL = "gemma3:1b"
+OLLAMA = os.environ.get("LOCALREPO_OLLAMA_URL", "http://localhost:11434").rstrip("/")
+MODEL = os.environ.get("LOCALREPO_MODEL", "gemma3:1b")
 
 EXT_LANG = {
     ".py": "Python", ".js": "JavaScript", ".jsx": "JavaScript", ".ts": "TypeScript",
@@ -60,7 +60,9 @@ Cover:
 Only use the provided source code."""
 
 app = FastAPI(title="LocalRepo AI")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+# Local-only app: only pages served from this machine may call the API.
+app.add_middleware(CORSMiddleware, allow_origin_regex=r"^http://(localhost|127\.0\.0\.1)(:\d+)?$",
+                   allow_methods=["*"], allow_headers=["*"])
 
 # In-memory index (single local user, no DB)
 STATE: dict = {"root": None, "name": None, "files": {}}  # rel path -> list[str] lines
@@ -112,9 +114,20 @@ def status():
     try:
         r = requests.get(f"{OLLAMA}/api/tags", timeout=2)
         names = [m["name"] for m in r.json().get("models", [])]
-        return {"connected": True, "model": MODEL, "model_available": MODEL in names}
+        return {"connected": True, "model": MODEL, "model_available": MODEL in names or f"{MODEL}:latest" in names}
     except Exception:
         return {"connected": False, "model": MODEL, "model_available": False}
+
+
+@app.post("/api/pull-model")
+def pull_model():
+    """Ask the local Ollama server to download the configured model (blocks until done)."""
+    try:
+        r = requests.post(f"{OLLAMA}/api/pull", json={"model": MODEL, "stream": False}, timeout=3600)
+        r.raise_for_status()
+    except requests.RequestException as e:
+        raise HTTPException(503, f"Could not pull {MODEL}: {e}")
+    return {"ok": True, "model": MODEL}
 
 
 PICKER = (
@@ -247,3 +260,10 @@ def explain(req: ExplainReq):
     answer = ollama_chat("You are LocalRepo AI, a local software engineering assistant.",
                          f"{EXPLAIN_PROMPT}\n\nFile: {rel}\n\n```\n{code}\n```")
     return {"file": req.file, "explanation": answer}
+
+
+# Packaged desktop app: serve the built frontend from this same server (set by the Electron shell).
+_static = os.environ.get("LOCALREPO_STATIC")
+if _static and os.path.isdir(_static):
+    from fastapi.staticfiles import StaticFiles
+    app.mount("/", StaticFiles(directory=_static, html=True), name="ui")

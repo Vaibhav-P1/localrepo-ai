@@ -1,0 +1,65 @@
+{
+  "name": "localrepo-ai",
+  "productName": "LocalRepo AI",
+  "version": "1.0.0",
+  "description": "Understand your codebase. Keep your code local.",
+  "author": "Vaibhav Pandey",
+  "license": "MIT",
+  "main": "main.js",
+  "private": true,
+  "scripts": {
+    "build:frontend": "npm --prefix ../frontend run build",
+    "build:backend": "python build_backend.py",
+    "electron:dev": "electron . --dev",
+    "electron:start": "npm run build:frontend && electron .",
+    "electron:build": "npm run build:frontend && npm run build:backend && electron-builder --win nsis --x64",
+    "electron:pack": "npm run build:frontend && npm run build:backend && electron-builder --win dir --x64"
+  },
+  "build": {
+    "appId": "com.localrepo.ai",
+    "productName": "LocalRepo AI",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../frontend/dist",
+        "to": "ui"
+      },
+      {
+        "from": "../backend/dist/localrepo-backend",
+        "to": "backend"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "LocalRepo AI",
+      "artifactName": "LocalRepo-AI-Setup.exe"
+    }
+  },
+  "devDependencies": {
+    "electron": "^44.5.1",
+    "electron-builder": "^26.15.3"
+  }
+}

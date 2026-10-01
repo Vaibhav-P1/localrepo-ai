@@ -81,8 +81,8 @@ export default function App() {
   async function open(file: string, hl?: [number, number]) {
     setExplain('')
     try {
-      const r = await api<{ content: string }>(`/api/file?path=${encodeURIComponent(file)}`)
-      setViewed({ path: file, content: r.content, hl })
+      const r = await api<{ path: string; content: string }>(`/api/file?path=${encodeURIComponent(file)}`)
+      setViewed({ path: r.path, content: r.content, hl })
     } catch (e) { setViewed({ path: file, content: `// ${(e as Error).message}` }) }
   }
 
@@ -107,6 +107,8 @@ export default function App() {
     }
   }
 
+  const norm = (p: string) => p.replace(/\\/g, '/').replace(/^\.\//, '').toLowerCase()
+  const known = new Set((repo?.files ?? []).map(norm))
   const offline = !!status && !status.connected
   const lines = viewed ? viewed.content.split('\n') : []
 
@@ -176,12 +178,15 @@ export default function App() {
                     {m.a === undefined && !m.error && <div className="a">Searching repo &amp; asking local model<span className="dots" /></div>}
                     {m.error && <div className="err">{m.error}</div>}
                     {m.a !== undefined && <>
-                      <div className="a"><Answer text={m.a} files={repo?.files ?? []} sources={m.sources ?? []} onOpen={open} /></div>
+                      <div className="a"><Answer text={m.a} /></div>
                       <div className="srcs"><h5>RELEVANT SOURCES</h5>
-                        {m.sources?.length ? m.sources.map(s => (
-                          <div key={s.file} className="src" onClick={() => open(s.file, [s.start_line, s.end_line])}>
-                            📄 {s.file} <i>· L{s.start_line}–{s.end_line}</i></div>
-                        )) : <i style={{ color: 'var(--muted)' }}>No matching files</i>}
+                        {m.sources?.length ? m.sources.map(s => {
+                          const ok = known.has(norm(s.file))
+                          return ok
+                            ? <div key={s.file} className="src" onClick={() => open(s.file, [s.start_line, s.end_line])}>
+                              📄 {s.file} <i>· L{s.start_line}–{s.end_line}</i></div>
+                            : <div key={s.file} className="src bad">⚠ Source unavailable <i>· {s.file}</i></div>
+                        }) : <i style={{ color: 'var(--muted)' }}>No matching files</i>}
                       </div>
                     </>}
                   </div>
@@ -208,7 +213,9 @@ export default function App() {
                 })}
               </pre></div>
               {(explain || explaining) && <div className="explain">
-                {explaining ? <span className="dots">Reading file with local model</span> : explain}</div>}
+                {explaining
+                  ? <span className="dots">Reading file with local model</span>
+                  : <Answer label="✦ FILE ANALYSIS" title={viewed.path} text={explain} />}</div>}
             </div>}
           </div>
         </section>

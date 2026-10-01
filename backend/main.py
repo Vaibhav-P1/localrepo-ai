@@ -1,5 +1,6 @@
 """LocalRepo AI backend: scans a local repo, retrieves relevant code, asks local Ollama."""
 import os
+import posixpath
 import re
 import subprocess
 import sys
@@ -167,10 +168,48 @@ def load_repo(req: RepoReq):
 
 @app.get("/api/file")
 def get_file(path: str):
-    lines = STATE["files"].get(path)
-    if lines is None:
-        raise HTTPException(404, "File not in index")
-    return {"path": path, "content": "\n".join(lines), "line_count": len(lines)}
+    rel, lines = lookup_file(path)
+    return {"path": rel, "content": "\n".join(lines), "line_count": len(lines)}
+
+
+def resolve_path(path: str):
+    """Map a user/AI-supplied path to an indexed relative path (or None).
+
+    Accepts backslashes, ./ and ../, absolute paths under the repo root, a leading repo-name
+    folder, different case, and an unambiguous trailing suffix.
+    """
+    files = STATE["files"]
+    if not files:
+        return None
+    p = path.strip().strip('"').replace("\\", "/")
+    root = (STATE["root"] or "").replace("\\", "/").rstrip("/")
+    if root and p.lower().startswith(root.lower() + "/"):
+        p = p[len(root) + 1:]
+    p = posixpath.normpath(p).lstrip("/")
+    if p in files:
+        return p
+    low = {f.lower(): f for f in files}
+    segs = p.split("/")
+    if segs and segs[0].lower() == (STATE["name"] or "").lower():  # repo-name prefix
+        segs = segs[1:]
+    for i in range(len(segs)):  # progressively drop leading segments
+        cand = "/".join(segs[i:])
+        if cand in files:
+            return cand
+        if cand.lower() in low:
+            return low[cand.lower()]
+    tail = "/".join(segs).lower()
+    hits = [f for f in files if f.lower().endswith("/" + tail)]
+    return hits[0] if len(hits) == 1 else None
+
+
+def lookup_file(path: str):
+    if not STATE["root"]:
+        raise HTTPException(404, "No repository loaded. Click Load again (the backend may have restarted).")
+    rel = resolve_path(path)
+    if rel is None:
+        raise HTTPException(404, f"File not in index: {path}")
+    return rel, STATE["files"][rel]
 
 
 @app.post("/api/ask")
@@ -191,21 +230,20 @@ def ask(req: AskReq):
         sources = []
         for r in results:
             if r["file"] not in [x["file"] for x in sources]:
-                sources.append({"file": r["file"], "start_line": r["start_line"], "end_line": r["end_line"]})
+                sources.append({"file": r["file"], "path": r["file"], "start_line": r["start_line"],
+                                "end_line": r["end_line"], "relevance": r["score"]})
     user = "REPOSITORY CONTEXT:\n" + context + f"\n\nQUESTION: {req.question}"
     if mode == "overview":
         user += ("\n\nAnswer as a short bullet list of the major components. Use ONLY directory and file "
-                 "names that appear in the context above, name the file that is the evidence for each "
-                 "component, and do not mention any component that is not in the context.")
+                 "names that appear in the context above. Do not attach a file name to each bullet; "
+                 "the supporting files are listed separately. Do not mention anything that is not in the context.")
     return {"answer": ollama_chat(SYSTEM_PROMPT, user), "sources": sources, "mode": mode}
 
 
 @app.post("/api/explain")
 def explain(req: ExplainReq):
-    lines = STATE["files"].get(req.file)
-    if lines is None:
-        raise HTTPException(404, "File not in index")
+    rel, lines = lookup_file(req.file)
     code = "\n".join(lines)[:12000]
     answer = ollama_chat("You are LocalRepo AI, a local software engineering assistant.",
-                         f"{EXPLAIN_PROMPT}\n\nFile: {req.file}\n\n```\n{code}\n```")
+                         f"{EXPLAIN_PROMPT}\n\nFile: {rel}\n\n```\n{code}\n```")
     return {"file": req.file, "explanation": answer}

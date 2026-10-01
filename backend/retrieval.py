@@ -43,7 +43,7 @@ OVERVIEW_PATTERNS = [
     r"main (components|modules|parts)", r"(project|repo|codebase) (is )?structur",
     r"how is (this|the) (project|repo|repository|codebase) (structured|organi[sz]ed)",
     r"what (does|is) (this|the) (project|repo|repository|codebase|app|application)",
-    r"high.?level", r"describe (this|the) (project|repo|codebase)",
+    r"high.?level", r"tech(nology)?\s*stack", r"technologies (used|does)", r"(frameworks|libraries) (used|does)", r"built with", r"describe (this|the) (project|repo|codebase)",
 ]
 
 

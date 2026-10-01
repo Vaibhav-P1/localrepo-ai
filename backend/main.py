@@ -8,6 +8,8 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
+from retrieval import is_overview, overview_context, retrieve
+
 OLLAMA = "http://localhost:11434"
 MODEL = "gemma3:1b"
 
@@ -22,22 +24,25 @@ EXT_LANG = {
 IGNORE_DIRS = {".git", "node_modules", "build", "dist", ".gradle", ".idea", "venv",
                ".venv", "__pycache__"}
 MAX_FILE_BYTES = 300_000
-CHUNK_LINES = 40
-MAX_CONTEXT_CHARS = 6000
-TOP_CHUNKS = 6
 
 SYSTEM_PROMPT = """You are LocalRepo AI, a local software engineering assistant.
 
-Answer questions ONLY using the repository context provided.
+You answer questions using evidence from the repository context.
 
-Do not invent files, functions, classes, APIs, or behavior.
+For architecture and overview questions, synthesize the repository
+structure, entry points, READMEs, dependencies, and important modules
+provided in the context.
 
-If the context does not contain enough information, say:
-'I couldn't find enough evidence in the indexed repository.'
+Do not invent components that are not supported by the context.
 
-Always mention relevant source files.
+If evidence is incomplete, clearly say what is known and what cannot
+be determined.
 
-Clearly distinguish facts from inference."""
+Always mention the relevant files used as evidence.
+
+Prefer concrete file paths and actual code over generic explanations."""
+
+NO_EVIDENCE = "I couldn't find enough evidence in the indexed repository."
 
 EXPLAIN_PROMPT = """Explain this source file to a developer.
 
@@ -69,25 +74,6 @@ def read_text(path: str):
         return raw.decode("utf-8", errors="replace")
     except OSError:
         return None
-
-
-def tokenize(text: str):
-    # split camelCase / snake_case / paths into lowercase words
-    text = re.sub(r"([a-z])([A-Z])", r"\1 \2", text)
-    # crude stemming: 5-char prefix so "monitoring"/"monitor", "retrieval"/"retrieve" match
-    return [t[:5] for t in re.findall(r"[A-Za-z][A-Za-z0-9]{1,}", text.lower())]
-
-
-STOP = set("the is are a an of to in on for and or how what does do why where which this that "
-           "with from it its be as at by me my explain project work works use used about "
-           "tell show can you".split())
-
-
-STOP_STEMS = {t[:5] for t in STOP}
-
-
-def question_terms(q: str):
-    return [t for t in tokenize(q) if t not in STOP_STEMS]
 
 
 class RepoReq(BaseModel):
@@ -148,8 +134,9 @@ def load_repo(req: RepoReq):
                 continue
             rel = os.path.relpath(full, root).replace("\\", "/")
             files[rel] = text.splitlines()
-    STATE.update(root=root, name=os.path.basename(root) or root, files=files)
     langs = Counter(EXT_LANG[os.path.splitext(p)[1].lower()] for p in files)
+    STATE.update(root=root, name=os.path.basename(root) or root, files=files,
+                 langs=[l for l, _ in langs.most_common()])
     return {"name": STATE["name"], "file_count": len(files),
             "languages": [l for l, _ in langs.most_common()],
             "files": sorted(files)}
@@ -163,77 +150,31 @@ def get_file(path: str):
     return {"path": path, "content": "\n".join(lines), "line_count": len(lines)}
 
 
-DEF_RE = re.compile(r"^\s*(?:export\s+)?(?:async\s+)?(?:def|class|function|func|fn|interface|struct|impl)\s+(\w+)")
-
-
-def retrieve(question: str):
-    terms = question_terms(question)
-    if not terms:
-        terms = tokenize(question)
-    term_set = set(terms)
-    scored = []
-    for rel, lines in STATE["files"].items():
-        path_tokens = set(tokenize(rel))
-        path_score = 3 * len(term_set & path_tokens)
-        n = len(lines)
-        for start in range(0, max(n, 1), CHUNK_LINES):
-            chunk = lines[start:start + CHUNK_LINES]
-            if not chunk:
-                continue
-            text = "\n".join(chunk)
-            counts = Counter(tokenize(text))
-            score = sum(min(counts[t], 5) for t in term_set)
-            if score == 0 and path_score == 0:
-                continue
-            # bonus: function/class names matching the question
-            for ln in chunk:
-                m = DEF_RE.match(ln)
-                if m and term_set & set(tokenize(m.group(1))):
-                    score += 4
-            score += path_score
-            if rel.lower().endswith(".md") and start == 0:
-                score += 1  # READMEs help architecture questions
-            if score > 0:
-                scored.append((score, rel, start, chunk))
-    scored.sort(key=lambda x: -x[0])
-    results, total, per_file = [], 0, Counter()
-    for score, rel, start, chunk in scored:
-        if per_file[rel] >= 2:
-            continue
-        code = "\n".join(chunk)
-        if total + len(code) > MAX_CONTEXT_CHARS and results:
-            break
-        results.append({"file": rel, "start_line": start + 1,
-                        "end_line": start + len(chunk), "code": code, "score": score})
-        per_file[rel] += 1
-        total += len(code)
-        if len(results) >= TOP_CHUNKS:
-            break
-    return results
-
-
-def tree_summary(limit=60):
-    return "\n".join(sorted(STATE["files"])[:limit])
-
-
 @app.post("/api/ask")
 def ask(req: AskReq):
     if not STATE["root"]:
         raise HTTPException(400, "Load a repository first.")
-    results = retrieve(req.question)
-    ctx = [f"Repository: {STATE['name']}", "File list (partial):", tree_summary(), ""]
-    for r in results:
-        ctx.append(f"--- {r['file']} (lines {r['start_line']}-{r['end_line']}) ---\n{r['code']}")
-    if not results:
-        ctx.append("(No matching code found.)")
-    user = "REPOSITORY CONTEXT:\n" + "\n".join(ctx) + f"\n\nQUESTION: {req.question}"
-    answer = ollama_chat(SYSTEM_PROMPT, user)
-    sources = []
-    for r in results:
-        if r["file"] not in [s["file"] for s in sources]:
-            sources.append({"file": r["file"], "start_line": r["start_line"],
-                            "end_line": r["end_line"]})
-    return {"answer": answer, "sources": sources, "chunks_used": len(results)}
+    files = STATE["files"]
+    if is_overview(req.question):
+        context, sources = overview_context(STATE["name"], files, STATE["langs"])
+        mode = "overview"
+    else:
+        results = retrieve(req.question, files)
+        mode = "search"
+        if not results:  # nothing relevant: don't let a 1B model guess
+            return {"answer": NO_EVIDENCE, "sources": [], "mode": mode}
+        context = f"Repository: {STATE['name']}\n\n" + "\n".join(
+            f"--- {r['file']} (lines {r['start_line']}-{r['end_line']}) ---\n{r['code']}" for r in results)
+        sources = []
+        for r in results:
+            if r["file"] not in [x["file"] for x in sources]:
+                sources.append({"file": r["file"], "start_line": r["start_line"], "end_line": r["end_line"]})
+    user = "REPOSITORY CONTEXT:\n" + context + f"\n\nQUESTION: {req.question}"
+    if mode == "overview":
+        user += ("\n\nAnswer as a short bullet list of the major components. Use ONLY directory and file "
+                 "names that appear in the context above, name the file that is the evidence for each "
+                 "component, and do not mention any component that is not in the context.")
+    return {"answer": ollama_chat(SYSTEM_PROMPT, user), "sources": sources, "mode": mode}
 
 
 @app.post("/api/explain")

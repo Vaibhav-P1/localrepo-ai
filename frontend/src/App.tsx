@@ -30,6 +30,11 @@ export default function App() {
   const [viewed, setViewed] = useState<Viewed | null>(null)
   const [explain, setExplain] = useState('')
   const [explaining, setExplaining] = useState(false)
+  const [dark, setDark] = useState(() => { try { return localStorage.getItem('lr-dark') === '1' } catch { return false } })
+  useEffect(() => {
+    document.documentElement.dataset.theme = dark ? 'dark' : 'light'
+    try { localStorage.setItem('lr-dark', dark ? '1' : '0') } catch { /* ignore */ }
+  }, [dark])
   const endRef = useRef<HTMLDivElement>(null)
   const hlRef = useRef<HTMLDivElement>(null)
 
@@ -102,10 +107,11 @@ export default function App() {
           <span className="tag">Understand your codebase. Keep your code local.</span>
         </div>
         <div className="status">
+          <button className="theme" onClick={() => setDark(d => !d)}>{dark ? '☀ Light' : '☾ Dark'}</button>
           {!status ? '…' : status.connected
-            ? <><span className="on">● Ollama Connected</span>
+            ? <><span className="on badge">● Ollama Connected</span>
               <small>Model: {status.model}{status.model_available ? '' : ` (not pulled — run: ollama pull ${status.model})`} · Local AI</small></>
-            : <><span className="off">○ Ollama Offline</span>
+            : <><span className="off badge">○ Ollama Offline</span>
               <small>Start it with: <code>ollama serve</code></small></>}
         </div>
       </header>
@@ -141,7 +147,12 @@ export default function App() {
             <div className="ask">
               <div className="msgs">
                 {msgs.length === 0 && <div className="empty">
-                  {repo ? 'Ask your codebase anything.' : 'Load a local repository to begin.'}
+                  {!repo && <div className="hero">
+                    <h1>LOCAL<br />REPO <span>AI</span></h1>
+                    <p>Understand your codebase. Keep your code local.</p>
+                    <div className="hero-note">① Paste a repo path on the left &nbsp; ② Load it &nbsp; ③ Ask anything</div>
+                  </div>}
+                  {repo && <div className="hero-sm">Ask your codebase anything.</div>}
                   {repo && <div style={{ marginTop: 12 }}>
                     {['Explain the architecture of this project.', 'Where is the entry point?'].map(s =>
                       <span key={s} className="ex" onClick={() => ask(s)}>{s}</span>)}
